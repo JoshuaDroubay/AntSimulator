@@ -1,0 +1,236 @@
+main:
+
+#include <iostream>
+#include <string>
+#include <cmath>
+#include <vector>
+#include <iomanip>
+#include <fstream>
+#include "ant.h"
+using namespace std;
+
+double PheromoneTrail(vector<double>);
+double triPoly(vector<double>, double, double);
+
+int main() {
+    vector<ant> antList;
+    vector<vector<double>> locationsX;
+    vector<vector<double>> locationsY;
+    double numIterations = 500;
+    double numPoints = 250;
+    int spacing = 2;
+    int antFrequency = 4;
+    int i;
+    int j;
+    int k;
+    int l;
+    ofstream outFS;
+    ifstream inFS;
+
+    antList.resize(20);
+
+    for (i = 0; i < antList.size(); ++ i) {
+        vector<double> p;
+        p.resize(2);
+        p.at(0) = 3 * sin(.3333 * .5 * i);
+        p.at(1) =  .5 * i;
+        antList.at(i).SetInitialPosition(p);
+    }
+
+    for (i = 0; i < antList.size(); ++ i) {
+        vector<double> o;
+        o.resize(2);
+        o.at(0) = .2 * sin(20*i);
+        o.at(1) = 1;
+        antList.at(i).SetInitialOrientation(o);
+    }
+
+    locationsX.resize(antList.size());
+    locationsY.resize(antList.size());
+
+    for (i = 0; i < locationsX.size(); ++i) {
+        locationsX.at(i).resize(1);
+        locationsX.at(i).at(0) = antList.at(i).GetPosition().at(0);
+    }
+
+    for (i = 0; i < locationsY.size(); ++i) {
+        locationsY.at(i).resize(1);
+        locationsY.at(i).at(0) = antList.at(i).GetPosition().at(1);
+    }
+
+    for (i = 0; i < numIterations; ++i) {
+        for (j = 0; j < antList.size(); ++j) {
+            double s1 = 0;
+            double s2 = 0;
+            vector <double> soundVector;
+
+            soundVector.resize(2);
+            soundVector.at(0) = 0;
+            soundVector.at(1) = 0;
+
+            for (k = 0; k < antList.size(); ++k) {
+
+                if (j != k){
+                    double norm;
+                    norm = sqrt(pow(antList.at(j).GetPosition().at(0) - antList.at(k).GetPosition().at(0),2)
+                                + pow(antList.at(j).GetPosition().at(1) - antList.at(k).GetPosition().at(1),2));
+                    if (norm < 1) {
+                        soundVector.at(0) = (1.0 / (pow(norm, 2) + .1)) * antList.at(k).GetOrientation().at(0);
+                        soundVector.at(1) = (1.0 / (pow(norm, 2) + .1)) * antList.at(k).GetOrientation().at(1);
+                    }
+
+                    for (l = 0; l < locationsX.at(k).size(); ++l){
+                        double q = 1;
+                        if (l != i){
+                            q = 1;
+                        }
+                        s1 = s1 + q * triPoly(antList.at(j).GetLeftAntenna(), locationsX.at(k).at(l), locationsY.at(k).at(l));
+                        s2 = s2 + q * triPoly(antList.at(j).GetRightAntenna(), locationsX.at(k).at(l), locationsY.at(k).at(l));
+                    }
+                }
+            }
+
+            s1 = s1 + PheromoneTrail(antList.at(j).GetLeftAntenna());
+            s2 = s2 + PheromoneTrail(antList.at(j).GetRightAntenna());
+
+            antList.at(j).UpdateOrientation(s1,s2,soundVector);
+            antList.at(j).UpdatePosition();
+
+            if (i % spacing == 0) {
+                locationsX.at(j).push_back(antList.at(j).GetPosition().at(0));
+                locationsY.at(j).push_back(antList.at(j).GetPosition().at(1));
+            }
+        }
+    }
+
+    for (i = 0; i < antList.size(); ++i) {
+        if (i % antFrequency == 0){
+            string name = "b";
+
+            for (j = 0; j < i; ++j) {
+                name = name + "b";
+            }
+
+            outFS.open(name + "x" + ".csv");
+
+            for (k = 0; k < locationsX.at(i).size(); ++k) {
+                outFS << setprecision(7) << locationsX.at(i).at(k) << endl;
+            }
+
+            outFS.close();
+        }
+    }
+
+    for (i = 0; i < antList.size(); ++i) {
+        if (i % antFrequency == 0){
+            string name = "b";
+
+            for (j = 0; j < i; ++j) {
+                name = name + "b";
+            }
+
+            outFS.open(name + "y" + ".csv");
+
+            for (k = 0; k < locationsX.at(i).size(); ++k) {
+                outFS << setprecision(7) << locationsY.at(i).at(k) << endl;
+            }
+
+            outFS.close();
+        }
+    }
+
+    return 0;
+}
+
+double PheromoneTrail(vector<double> position) {
+    double pheromoneStrength;
+    double x = position.at(0);
+    double y = position.at(1);
+
+    pheromoneStrength = (sin(y) * sin(1.5 * y) * sin(x) + 2.5) / (pow(x - 3 * sin(.3333 * y),2) + 1);
+
+    /*pheromoneStrength = 0;*/
+
+    return pheromoneStrength;
+}
+
+double triPoly(vector<double> position1, double position2x, double position2y){
+    double pheromoneStrength;
+    double p1x = position1.at(0);
+    double p1y = position1.at(1);
+    double p2x = position2x;
+    double p2y = position2y;
+    double x = 0;
+    double X = 0;
+    double r = .006;
+
+    x = sqrt(pow(p1x-p2x,2) + pow(p1y-p2y,2));
+
+    /*if (x <= 1.5) {
+        X = (4.0/3.0) * x - 1;
+        pheromoneStrength = .65822914 - .459699379*X + .0504782826*pow(X,2)
+                + .13114973*pow(X,3) -.0606950139*pow(X,4)
+                - .008642615*pow(X,5);
+    }
+
+    if (x > 1.5 && x <= 3.5) {
+        X = x - (5.0/2.0);
+        pheromoneStrength = .120392594 - .1073674797 * X + .0514454415 * pow(X,2)
+                - .018630486 * pow(X,3) + .00675237 * pow(X,4)
+                - .0020474816 * pow(X,5);
+    }
+
+    if (x > 3.5 && x <= 6.5) {
+        X = (2.0/3.0)*x - (10.0/3.0);
+        pheromoneStrength = .0148404416 - .0180118699 * X + 0.0110662692444 * pow(X,2)
+                - 0.00473414031383 * pow(X,3) + 0.00178800223834 * pow(X,4)
+                - 0.00052044573393 * pow(X,5);
+    }
+
+    if (x > 6.5 && x <= 12.5) {
+        X = (1.0/3.0)*x - (19.0/6.0);
+        pheromoneStrength = 0.000403563702079 - 0.00104354522867 * X + 0.00113606830178 * pow(X,2)
+                            - 0.000890045513243 * pow(X,3) + 0.000707838277813 * pow(X,4)
+                            - 0.000329888100967 * pow(X,5);
+    }
+
+    if (x > 12.5) {
+        pheromoneStrength = 0.0;
+    }*/
+
+    if (x <= .5) {
+        X = 4.0 * x - 1;
+        pheromoneStrength = 4.67421572671 - 2.55403017927 * X - 0.0791920706284 * pow(X,2)
+                            + 0.714107671528 * pow(X,3) - 0.18297126672 * pow(X,4)
+                            - 0.0790133513576 * pow(X,5);
+    }
+
+    if (x > .5 && x <= 1.5) {
+        X = 2 * x - 2;
+        pheromoneStrength = 0.753177655751 - 0.846515885365 * X + 0.509466226259 * pow(X,2)
+                            - 0.234096299705 * pow(X,3) + 0.112661552046 * pow(X,4)
+                            - 0.0407996640856 * pow(X,5);
+    }
+
+    if (x > 1.5 && x <= 3.5) {
+        X = x - (5.0/2.0);
+        pheromoneStrength = 0.0333274379049 - 0.0661557529047 * X + 0.0643855801437 * pow(X,2)
+                            - 0.0447264173224 * pow(X,3) + 0.0315451194625 * pow(X,4)
+                            - 0.0140104632199 * pow(X,5);
+    }
+
+    if (x > 3.5 && x <= 7) {
+        X = (1.0/3.0)*x - (13.0/6.0);
+        pheromoneStrength = 0.0000567053798757 - 0.000203914607168 * X - 0.000545140439222 * pow(X,2)
+                            + 0.000492948506539 * pow(X,3) + 0.00265768594517 * pow(X,4)
+                            - 0.00256386735412 * pow(X,5);
+    }
+
+    if (x > 7) {
+        pheromoneStrength = 0.0;
+    }
+
+    pheromoneStrength = r * pheromoneStrength;
+
+    return pheromoneStrength;
+}
