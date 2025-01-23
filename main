@@ -1,5 +1,3 @@
-main:
-
 #include <iostream>
 #include <string>
 #include <cmath>
